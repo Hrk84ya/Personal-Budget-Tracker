@@ -7,22 +7,87 @@ import io
 
 def load_transactions():
     if not os.path.exists('data/transactions.csv'):
-        df = pd.DataFrame(columns=['date', 'type', 'category', 'amount', 'description'])
+        df = pd.DataFrame(columns=['date', 'type', 'category', 'amount', 'description', 'tags'])
         df.to_csv('data/transactions.csv', index=False)
     return pd.read_csv('data/transactions.csv')
 
-def save_transaction(date, trans_type, category, amount, description):
+def save_transaction(date, trans_type, category, amount, description, tags=""):
     df = load_transactions()
     new_transaction = pd.DataFrame({
         'date': [date],
         'type': [trans_type],
         'category': [category],
         'amount': [amount],
-        'description': [description]
+        'description': [description],
+        'tags': [tags]
     })
     df = pd.concat([df, new_transaction], ignore_index=True)
     df.to_csv('data/transactions.csv', index=False)
     return df
+
+def edit_transaction(index, date, trans_type, category, amount, description, tags):
+    df = load_transactions()
+    df.loc[index, 'date'] = date
+    df.loc[index, 'type'] = trans_type
+    df.loc[index, 'category'] = category
+    df.loc[index, 'amount'] = amount
+    df.loc[index, 'description'] = description
+    df.loc[index, 'tags'] = tags
+    df.to_csv('data/transactions.csv', index=False)
+    return df
+
+def delete_transaction(index):
+    df = load_transactions()
+    df = df.drop(index).reset_index(drop=True)
+    df.to_csv('data/transactions.csv', index=False)
+    return df
+
+def search_transactions(df, search_term, start_date=None, end_date=None, 
+                       transaction_type=None, category=None, min_amount=None, 
+                       max_amount=None, tags=None):
+    # Convert date column to datetime if it's not already
+    df['date'] = pd.to_datetime(df['date'])
+    
+    # Create a mask for each filter
+    mask = pd.Series(True, index=df.index)
+    
+    # Search term filter (searches in description and tags)
+    if search_term:
+        mask &= (df['description'].str.contains(search_term, case=False, na=False) |
+                df['tags'].str.contains(search_term, case=False, na=False))
+    
+    # Date range filter
+    if start_date:
+        mask &= df['date'] >= pd.to_datetime(start_date)
+    if end_date:
+        mask &= df['date'] <= pd.to_datetime(end_date)
+    
+    # Transaction type filter
+    if transaction_type:
+        mask &= df['type'] == transaction_type
+    
+    # Category filter
+    if category:
+        mask &= df['category'] == category
+    
+    # Amount range filter
+    if min_amount is not None:
+        mask &= df['amount'] >= min_amount
+    if max_amount is not None:
+        mask &= df['amount'] <= max_amount
+    
+    # Tags filter
+    if tags:
+        mask &= df['tags'].str.contains(tags, case=False, na=False)
+    
+    return df[mask]
+
+def get_all_tags(df):
+    # Get all unique tags from the transactions
+    all_tags = set()
+    for tags in df['tags'].dropna():
+        all_tags.update(tag.strip() for tag in tags.split(','))
+    return sorted(list(all_tags))
 
 def get_category_distribution(df):
     # Filter for expenses only and handle empty dataframe

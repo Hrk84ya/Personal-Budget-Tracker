@@ -13,7 +13,11 @@ from utils import (
     save_budget,
     get_budget_status,
     get_budget_vs_actual_chart,
-    check_budget_alerts
+    check_budget_alerts,
+    edit_transaction,
+    delete_transaction,
+    search_transactions,
+    get_all_tags
 )
 
 # Page configuration
@@ -45,7 +49,8 @@ with st.sidebar:
 
         transaction_date = st.date_input(
             "Date",
-            value=datetime.now()
+            value=datetime.now(),
+            key="add_transaction_date"
         )
 
         transaction_type = st.selectbox(
@@ -76,6 +81,12 @@ with st.sidebar:
         )
 
         description = st.text_input("Description")
+        
+        # Add tags input
+        tags = st.text_input(
+            "Tags (comma-separated)",
+            help="Add tags to categorize your transactions (e.g., 'groceries, monthly, essential')"
+        )
 
         if st.button("Add Transaction"):
             if amount > 0 and description:
@@ -84,7 +95,8 @@ with st.sidebar:
                     transaction_type,
                     category,
                     amount,
-                    description
+                    description,
+                    tags
                 )
                 st.success("Transaction added successfully!")
             else:
@@ -201,6 +213,116 @@ st.dataframe(
     use_container_width=True,
     hide_index=True
 )
+
+# Transaction Management Section
+st.subheader("Transaction Management")
+
+# Search and Filter
+col1, col2 = st.columns(2)
+
+with col1:
+    search_term = st.text_input("Search transactions", 
+                               help="Search in descriptions and tags")
+    start_date = st.date_input("Start Date", 
+                              value=datetime.now().replace(day=1),
+                              key="filter_start_date")
+    end_date = st.date_input("End Date", 
+                            value=datetime.now(),
+                            key="filter_end_date")
+    transaction_type_filter = st.selectbox(
+        "Transaction Type",
+        options=["All", "Expense", "Income"]
+    )
+
+with col2:
+    category_filter = st.selectbox(
+        "Category",
+        options=["All"] + categories
+    )
+    min_amount = st.number_input("Min Amount", min_value=0.0, value=0.0)
+    max_amount = st.number_input("Max Amount", min_value=0.0, value=1000000.0)
+    tag_filter = st.selectbox(
+        "Tag",
+        options=["All"] + get_all_tags(st.session_state.transactions)
+    )
+
+# Apply filters
+filtered_transactions = search_transactions(
+    st.session_state.transactions,
+    search_term=search_term if search_term else None,
+    start_date=start_date,
+    end_date=end_date,
+    transaction_type=transaction_type_filter if transaction_type_filter != "All" else None,
+    category=category_filter if category_filter != "All" else None,
+    min_amount=min_amount if min_amount > 0 else None,
+    max_amount=max_amount if max_amount < 1000000.0 else None,
+    tags=tag_filter if tag_filter != "All" else None
+)
+
+# Display filtered transactions with edit/delete options
+st.dataframe(
+    filtered_transactions.sort_values('date', ascending=False),
+    use_container_width=True,
+    hide_index=True
+)
+
+# Edit Transaction
+st.subheader("Edit Transaction")
+edit_index = st.number_input("Enter transaction index to edit", 
+                            min_value=0, 
+                            max_value=len(filtered_transactions)-1 if not filtered_transactions.empty else 0,
+                            value=0,
+                            key="edit_index")
+
+if not filtered_transactions.empty:
+    transaction = filtered_transactions.iloc[edit_index]
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        edit_date = st.date_input("Date", value=pd.to_datetime(transaction['date']), key="edit_date")
+        edit_type = st.selectbox("Type", options=["Expense", "Income"], 
+                               index=0 if transaction['type'] == "Expense" else 1,
+                               key="edit_type")
+        edit_category = st.selectbox("Category", options=categories, 
+                                   index=categories.index(transaction['category']),
+                                   key="edit_category")
+    
+    with col2:
+        edit_amount = st.number_input("Amount", min_value=0.01, 
+                                    value=float(transaction['amount']),
+                                    key="edit_amount")
+        edit_description = st.text_input("Description", 
+                                       value=transaction['description'],
+                                       key="edit_description")
+        edit_tags = st.text_input("Tags", value=transaction['tags'], key="edit_tags")
+
+    if st.button("Update Transaction"):
+        st.session_state.transactions = edit_transaction(
+            filtered_transactions.index[edit_index],
+            edit_date,
+            edit_type,
+            edit_category,
+            edit_amount,
+            edit_description,
+            edit_tags
+        )
+        st.success("Transaction updated successfully!")
+
+# Delete Transaction
+st.subheader("Delete Transaction")
+delete_index = st.number_input("Enter transaction index to delete", 
+                              min_value=0, 
+                              max_value=len(filtered_transactions)-1 if not filtered_transactions.empty else 0,
+                              value=0,
+                              key="delete_index")
+
+if st.button("Delete Transaction"):
+    if not filtered_transactions.empty:
+        st.session_state.transactions = delete_transaction(filtered_transactions.index[delete_index])
+        st.success("Transaction deleted successfully!")
+    else:
+        st.error("No transactions to delete!")
 
 # Footer
 st.markdown("---")
