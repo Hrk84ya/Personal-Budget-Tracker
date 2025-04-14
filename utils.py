@@ -25,7 +25,15 @@ def save_transaction(date, trans_type, category, amount, description):
     return df
 
 def get_category_distribution(df):
-    category_totals = df.groupby('category')['amount'].sum().reset_index()
+    # Filter for expenses only and handle empty dataframe
+    expense_data = df[df['type'] == 'Expense'].copy()
+    if expense_data.empty:
+        return create_empty_chart("No expense data available")
+    
+    # Calculate category totals
+    category_totals = expense_data.groupby('category')['amount'].sum().reset_index()
+    
+    # Create pie chart
     fig = px.pie(
         category_totals,
         values='amount',
@@ -33,11 +41,36 @@ def get_category_distribution(df):
         title='Spending by Category',
         color_discrete_sequence=px.colors.qualitative.Set3
     )
+    
+    # Update layout
+    fig.update_layout(
+        height=400,
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+    
     return fig
 
 def get_monthly_trends(df):
+    # Convert date to datetime if it's not already
     df['date'] = pd.to_datetime(df['date'])
-    monthly_totals = df.groupby([df['date'].dt.strftime('%Y-%m'), 'type'])['amount'].sum().reset_index()
+    
+    # Group by month and type
+    monthly_totals = df.groupby([
+        df['date'].dt.strftime('%Y-%m'),
+        'type'
+    ])['amount'].sum().reset_index()
+    
+    if monthly_totals.empty:
+        return create_empty_chart("No transaction data available")
+    
+    # Create bar chart
     fig = px.bar(
         monthly_totals,
         x='date',
@@ -46,6 +79,38 @@ def get_monthly_trends(df):
         title='Monthly Income vs Expenses',
         barmode='group',
         color_discrete_sequence=['#2ECC71', '#E74C3C']
+    )
+    
+    # Update layout
+    fig.update_layout(
+        height=400,
+        xaxis_title="Month",
+        yaxis_title="Amount (₹)",
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        )
+    )
+    
+    return fig
+
+def create_empty_chart(message):
+    fig = go.Figure()
+    fig.add_annotation(
+        text=message,
+        xref="paper",
+        yref="paper",
+        showarrow=False,
+        font=dict(size=14)
+    )
+    fig.update_layout(
+        height=400,
+        xaxis=dict(showgrid=False, showticklabels=False),
+        yaxis=dict(showgrid=False, showticklabels=False)
     )
     return fig
 
