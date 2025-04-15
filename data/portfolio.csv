@@ -1,0 +1,6 @@
+investment_type,name,amount,purchase_date,current_value
+Stocks,Apple Inc.,1000,2023-01-15,1200
+Stocks,Microsoft Corp.,1500,2023-03-20,1800
+Bonds,US Treasury Bond,5000,2023-06-10,5100
+Mutual Funds,Vanguard S&P 500,3000,2023-09-05,3300
+Crypto,Bitcoin,500,2023-11-30,600 

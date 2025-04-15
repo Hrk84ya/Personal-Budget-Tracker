@@ -1,0 +1,4 @@
+goal_type,name,target_amount,current_amount,deadline,status,milestones
+Savings,Emergency Fund,10000,0,2024-12-31,In Progress,"5000,7500,10000"
+Savings,New Car,50000,0,2025-12-31,In Progress,"10000,25000,40000,50000"
+Investment,Retirement Fund,100000,0,2030-12-31,In Progress,"25000,50000,75000,100000" 
